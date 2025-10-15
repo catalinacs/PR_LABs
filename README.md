@@ -1,6 +1,19 @@
 # LAB 1 PR: HTTP file server with TCP sockets
 In this lab, I implemented a basic HTTP file server in Python that allows directory navigation, including access to nested folders and files.
 
+## Overview
+
+This lab demonstrates a simple HTTP server implemented in Python using TCP sockets.
+
+The server:
+- Serves files from a specified directory.
+- Supports **HTML, PNG, and PDF** files.
+- Generates directory listings for **nested directories**.
+
+A Python **client** can fetch files from the server and save them locally depending on the file type.
+
+---
+
 ## 1. Contents of Directory
 * The root directory contains several subfolders. The *Downloads* folder is designated for files saved by the client. The *Public* directory includes additional subdirectories, along with various HTML, PNG, and PDF files used for testing. Other nested directories, such as *books* and *docs*, also include similar test files. The *Report* folder stores images utilized in this report.
 * The *Dockerfile* defines the setup for both the server and client containers—specifying dependencies and instructions to run the Python applications within Docker. The *docker-compose.yml* file coordinates these containers, launching both services, linking them together, mapping ports, and managing shared storage volumes.
@@ -127,14 +140,14 @@ The phone successfully accessed the server, displaying the index page and direct
 
 Screenshots:
 - Server running on laptop (terminal)
-  ![terminal.png](public%2Freport%2Fterminal.png)
+  <img src="public/report/terminal.png"  alt="terminal"  width="300">
 
 - Successful access from phone browser (main directory), directory listing and images/PDFs loaded on the phone
-  ![server.png](public%2Freport%2Fserver.png)
-  ![syllabus.png](public%2Freport%2Fsyllabus.png)
+  <img src="public/report/server.png" alt="server" width="300">
+  <img src="public/report/syllabus.png" alt="syllabus" width="300">
 
 - Successful access from phone browser (index.html)
-  ![browser.png](public%2Freport%2Fbrowser.png)
+  <img src="public/report/browser.png"  alt="browser"  width="300">
 
 ## 9. Conclusion
 The HTTP server successfully serves HTML, PNG, and PDF files, generates directory listings for subfolders, and correctly handles 404 and unsupported file types. The Python client fetches files, prints HTML pages, and saves PNG/PDF files locally. The server was also successfully accessed from another device on the local network, confirming proper network functionality.
