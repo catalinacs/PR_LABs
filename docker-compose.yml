@@ -1,0 +1,18 @@
+services:
+  server:
+    build: .
+    container_name: pr-web-server
+    environment:
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app:ro
+    command: ["python", "server.py", "/app"]
+  client:
+    build: .
+    entrypoint: [ "python", "client.py" ]
+    volumes:
+      - ./downloads:/app/downloads
+    depends_on:
+      - server

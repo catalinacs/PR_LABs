@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# JetBrains / IntelliJ
+.idea/
+
+# Node (if any)
+node_modules/
