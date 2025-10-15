@@ -140,7 +140,7 @@ The phone successfully accessed the server, displaying the index page and direct
 
 Screenshots:
 - Server running on laptop (terminal)
-  ![server.png](public%2Freport%2Fserver.png)
+  ![terminal.png](public%2Freport%2Fterminal.png)
 
 - Successful access from phone browser (main directory), directory listing and images/PDFs loaded on the phone.
 
