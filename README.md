@@ -71,7 +71,7 @@ We can also choose to serve another directory, like *public* (as seen in the fol
   ![png_request.png](public%2Freport%2Fpng_request.png)
 
 * To request a **pdf** file we do the same as for the png file.
-  ![vicious_pdf.png](public%2Freport_pics%2Fvicious_pdf.png)
+  ![vicious_pdf.png](public%2Freport%2Fvicious_pdf.png)
 
 * We can also request a  **html** and we will see the html page in the browser.
   ![html_request.png](public%2Freport%2Fhtml_request.png)
@@ -90,7 +90,7 @@ docker compose run --rm client server 8000 1_Vicious.pdf
 ```
 And we will get the file saved in the *downloads* folder.
 
-![download.png](public%2Freport%2Fdownload.png)
+![downloads.png](public%2Freport%2Fdownloads.png)
 
 ## Browse a friend's server
 For this part, I used my friend Condrea Loredana’s server. First we connected to the same hotspot, then she started her server and then she ran ```ifconfig``` on her laptop and gave it to me. After that, I entered in my browser: ```172.20.10.10:8000``` (her ip addres : port) an got the following result:
