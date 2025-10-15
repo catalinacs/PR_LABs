@@ -140,13 +140,15 @@ The phone successfully accessed the server, displaying the index page and direct
 
 Screenshots:
 - Server running on laptop (terminal)
-  <img src="public/report/terminal.png"  alt="terminal"  width="300">
+  ![server.png](public%2Freport%2Fserver.png)
 
-- Successful access from phone browser (main directory), directory listing and images/PDFs loaded on the phone
+- Successful access from phone browser (main directory), directory listing and images/PDFs loaded on the phone.
+
   <img src="public/report/server.png" alt="server" width="300">
   <img src="public/report/syllabus.png" alt="syllabus" width="300">
 
 - Successful access from phone browser (index.html)
+
   <img src="public/report/browser.png"  alt="browser"  width="300">
 
 ## 9. Conclusion
