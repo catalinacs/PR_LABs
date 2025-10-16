@@ -118,7 +118,7 @@ To simulate browsing the server from another client on the network, the setup wa
 Since the dorm LAN uses a private network that restricts incoming connections, the laptop acted as a Wi-Fi hotspot, allowing the phone to connect to the same local network.
 
 ## 8.1 Network Setup
-- Laptop: Ran the HTTP server in Terminal on port 8080.
+- Laptop: Ran the HTTP server in Terminal on port 8000.
 - Phone: Connected to the laptop’s hotspot network.
 - The server’s IP address was identified using the command:
 
