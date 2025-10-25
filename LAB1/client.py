@@ -1,100 +1,101 @@
-# client.py
-import os, sys, socket
+import os
+import sys
+import socket
+from urllib.parse import quote
 
-DEF_DIR = "./downloads"
+DOWNLOAD_DIR = "downloads"
 
-def http_get(host: str, port: int, path: str) -> bytes:
-    if not path.startswith("/"):
-        path = "/" + path
-    req = (
-        f"GET {path} HTTP/1.1\r\n"
-        f"Host: {host}\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-    ).encode("utf-8")
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, port))
-    s.sendall(req)
+def save_file(filename: str, data: bytes) -> str:
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    # strip any path parts coming from the request
+    base = os.path.basename(filename) or "downloaded_file"
+    out_path = os.path.join(DOWNLOAD_DIR, base)
+    with open(out_path, "wb") as f:
+        f.write(data)
+    return out_path
+
+def recv_all(sock: socket.socket) -> bytes:
     chunks = []
     while True:
-        data = s.recv(4096)
-        if not data:
+        buf = sock.recv(4096)
+        if not buf:
             break
-        chunks.append(data)
-    s.close()
+        chunks.append(buf)
     return b"".join(chunks)
 
 def main():
-    # Allow 3-arg (default dir) or 4-arg usage
-    if len(sys.argv) not in (4, 5):
-        print("Usage:")
-        print("  python3 client.py <host> <port> <url_path>")
-        print("  python3 client.py <host> <port> <url_path> <download_dir>")
+    if len(sys.argv) < 4:
+        print("Usage: python3 client.py <host> <port> <path-or-file>")
         sys.exit(1)
 
     host = sys.argv[1]
     port = int(sys.argv[2])
-    url_path = sys.argv[3]
-    out_dir = sys.argv[4] if len(sys.argv) == 5 else DEF_DIR
+    req_path = sys.argv[3]
 
-    # Make '0.0.0.0' work like the example by mapping to localhost
-    if host in ("0.0.0.0", "::", "::0"):
-        host = "localhost"
+    # Ensure leading slash for the request path
+    if not req_path.startswith("/"):
+        req_path = "/" + req_path
 
-    raw = http_get(host, port, url_path)
+    # Build HTTP/1.1 request; ask the server to close after response
+    request = (
+        f"GET {quote(req_path)} HTTP/1.1\r\n"
+        f"Host: {host}:{port}\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+    ).encode("ascii")
+
+    # Connect and send
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((host, port))
+        s.sendall(request)
+
+        raw = recv_all(s)
 
     # Split headers/body
-    try:
-        head, body = raw.split(b"\r\n\r\n", 1)
-    except ValueError:
-        print("Invalid HTTP response")
-        sys.exit(1)
+    sep = b"\r\n\r\n"
+    pos = raw.find(sep)
+    if pos == -1:
+        sep = b"\n\n"
+        pos = raw.find(sep)
+    if pos == -1:
+        print("Malformed HTTP response: no header/body separator")
+        sys.exit(2)
 
-    # Parse status + headers
-    lines = head.decode("iso-8859-1").split("\r\n")
-    status = lines[0].split(" ", 2)
-    code = int(status[1]) if len(status) > 1 and status[1].isdigit() else 0
+    header_bytes = raw[:pos]
+    body = raw[pos + len(sep):]
+
+    # Decode headers and gather into a dict (case-insensitive)
+    header_lines = header_bytes.decode("iso-8859-1", errors="replace").splitlines()
+    status_line = header_lines[0] if header_lines else "HTTP/1.1 ???"
+    print(status_line)
 
     headers = {}
-    for ln in lines[1:]:
-        if ":" in ln:
-            k, v = ln.split(":", 1)
+    for line in header_lines[1:]:
+        if ":" in line:
+            k, v = line.split(":", 1)
             headers[k.strip().lower()] = v.strip()
 
-    if code == 301 and "location" in headers:
-        # simple one-level follow for directory slash redirects
-        loc = headers["location"]
-        raw = http_get(host, port, loc)
-        head, body = raw.split(b"\r\n\r\n", 1)
-        lines = head.decode("iso-8859-1").split("\r\n")
-        status = lines[0].split(" ", 2)
-        code = int(status[1]) if len(status) > 1 and status[1].isdigit() else 0
-        headers = {}
-        for ln in lines[1:]:
-            if ":" in ln:
-                k, v = ln.split(":", 1)
-                headers[k.strip().lower()] = v.strip()
+    content_type = headers.get("content-type", "application/octet-stream").lower()
 
-    if code != 200:
-        print(f"Server returned {code}.")
-        ctype = headers.get("content-type", "")
-        if "text/html" in ctype:
-            print(body.decode("utf-8", errors="replace")[:800])
-        sys.exit(1)
-
-    ctype = headers.get("content-type", "").lower()
-
-    # HTML/listing -> print to stdout; PNG/PDF -> save to file
-    if ctype.startswith("text/html"):
-        print(body.decode("utf-8", errors="replace"))
+    # If not 200, just print the body as text so you see the error page
+    if not status_line.startswith("HTTP/1.1 200"):
+        try:
+            print(body.decode("utf-8", errors="replace"))
+        except Exception:
+            pass
         return
 
-    os.makedirs(out_dir, exist_ok=True)  # harmless if already exists
-    filename = url_path.rsplit("/", 1)[-1] or "download.bin"
-    out_path = os.path.join(out_dir, filename)
-    with open(out_path, "wb") as f:
-        f.write(body)
-    print(f"Saved to: {out_path}")
+    # Handle by content-type
+    if content_type.startswith("text/html"):
+        # Print HTML to stdout
+        print(body.decode("utf-8", errors="replace"))
+    elif content_type.startswith("image/png") or content_type.startswith("application/pdf"):
+        out = save_file(req_path, body)
+        print(f"Saved to {out}")
+    else:
+        # Default: save unknown types
+        out = save_file(req_path, body)
+        print(f"Saved (type: {content_type}) to {out}")
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 import os
 import socket
 import mimetypes
+import time
 
 # ensure common types exist even in slim images
 mimetypes.init()
@@ -15,17 +16,6 @@ from typing import Optional
 
 PORT = int(os.environ.get("PORT", "8000"))
 ALLOWED_EXTENSIONS = {".html", ".png", ".pdf"}
-
-
-def html_escape(s: str) -> str:
-    """Minimal HTML escape for text content."""
-    return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#x27;")
-    )
 
 
 def file_size(num_bytes: int) -> str:
@@ -68,8 +58,6 @@ def _minimal_listing_html(req_path: str, abs_dir: str) -> bytes:
     except OSError:
         return b"<html><body><h1>Forbidden</h1></body></html>"
 
-    esc_path = html_escape(req_path)
-
     lines = [
         "<!DOCTYPE html>",
         "<html lang='en'>",
@@ -80,7 +68,7 @@ def _minimal_listing_html(req_path: str, abs_dir: str) -> bytes:
         "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>",
         "<link href='https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap' rel='stylesheet'>",
         "<link href='https://fonts.googleapis.com/css2?family=Snowburst+One&display=swap' rel='stylesheet'>",
-        f"<title>Content of {esc_path}</title>",
+        f"<title>Content of {req_path}</title>",
         "<style>",
         # winter palette
         ":root{--bg:#E9F3FF;--card:#F8FBFF;--text:#1F2A44;--muted:#5F7390;--link:#2B6CB0;--row:#EAF3FF;--border:#D8E8FF}",
@@ -124,12 +112,12 @@ def _minimal_listing_html(req_path: str, abs_dir: str) -> bytes:
         "<div class='center-title'>",
         "<h1 class='title-lab'>Catalina&#x27;s 1st PR LAB</h1>",
         "</div>",
-        f"<h2>Content of {esc_path}</h2>",
+        f"<h2>Content of {req_path}</h2>",
         "</header>",
         "<main>",
     ]
 
-    # Parent directory link
+    # Add parent directory link outside the table
     if req_path != "/":
         parent = req_path.rstrip("/").rsplit("/", 1)[0]
         parent = "/" if not parent else parent + "/"
@@ -144,17 +132,20 @@ def _minimal_listing_html(req_path: str, abs_dir: str) -> bytes:
 
     for name in entries:
         full = os.path.join(abs_dir, name)
-        is_dir = os.path.isdir(full)
-        href = quote(name) + ("/" if is_dir else "")
-        row_class = "dir" if is_dir else "file"
-        size = "—" if is_dir else file_size(os.path.getsize(full))
+        if os.path.isdir(full):
+            href = quote(name) + "/"
+            row_class = "dir"
+            size = "—"
+        else:
+            href = quote(name)
+            row_class = "file"
+            size = file_size(os.path.getsize(full))
+
         ts = os.path.getmtime(full)
         mtime = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-        safe_name = html_escape(name)
-        display_name = safe_name + ("/" if is_dir else "")
         lines.append(
             f'<tr class="{row_class}">'
-            f'<td><a href="{href}">{display_name}</a></td>'
+            f'<td><a href="{href}">{name if not os.path.isdir(full) else name + "/"}</a></td>'
             f"<td>{size}</td><td>{mtime}</td>"
             f"</tr>"
         )
@@ -214,22 +205,42 @@ def _respond_404(conn):
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href='https://fonts.googleapis.com/css2?family=Snowburst+One&display=swap' rel='stylesheet'>
+            <link href='https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap' rel='stylesheet'>
+
             <title>404 Not Found</title>
             <style>
-                :root{--bg:#E9F3FF;--card:#F8FBFF;--text:#1F2A44;--muted:#5F7390;--link:#2B6CB0;}
-                body{
-                    margin:0; padding:0; display:flex; justify-content:center; align-items:center;
-                    height:100vh; background:linear-gradient(180deg,#ECF5FF 0%, var(--bg) 100%);
-                    color:var(--text); font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+                body {
+                    margin: 0;
+                    padding: 0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    background-color: #F7F3ED;
+                    color: #DBA1A2;
+                    text-align: center;
+                    font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
                 }
-                .container{max-width:600px; text-align:center; background:var(--card); padding:24px 28px; border-radius:16px;
-                           box-shadow:0 8px 24px rgba(16,46,86,.18)}
-                h1{font-size:64px; margin:0 0 12px; font-family:'Snowburst One', cursive; color:#E8F4FF;
-                   text-shadow:0 2px 0 rgba(43,108,176,.22), 0 6px 16px rgba(0,40,80,.25)}
-                p{font-size:18px; color:var(--muted); margin:6px 0}
-                a{color:var(--link); text-decoration:none; font-weight:600}
-                a:hover{text-decoration:underline}
+                .container {
+                    max-width: 600px;
+                }
+                h1 {
+                    font-size: 64px;
+                    margin-bottom: 16px;
+                    font-family: 'Pixelify Sans', sans-serif;
+                }
+                p {
+                    font-size: 18px;
+                    color: #955A5C;
+                }
+                a {
+                    color: #8B3C46;
+                    text-decoration: none;
+                    font-weight: bold;
+                }
+                a:hover {
+                    text-decoration: underline;
+                }
             </style>
         </head>
         <body>
@@ -268,14 +279,17 @@ def main():
     # allows restart without "Address already in use"
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind(("0.0.0.0", PORT))
+    s.listen(128)
+    print("ST server: listen backlog set to 128")
 
-    # handles one client at a time (Lab 1 requirement)
+    # handles one client at a time
     s.listen(1)
     print(f"Server running on http://0.0.0.0:{PORT}")
     print(f"Access locally: http://localhost:{PORT}")
     print(f"Press Ctrl+C to stop")
 
     while True:
+        # returns a conn socket and client's address
         conn, addr = s.accept()
         print(f"Connection from {addr}")
         try:
@@ -284,15 +298,22 @@ def main():
             print(f"Request: {line}")
             parts = line.split()
             if len(parts) != 3:
-                respond(conn, "400 Bad Request",
-                        {"Content-Type": "text/plain", "Connection": "close"},
-                        b"Bad Request")
+                respond(
+                    conn,
+                    "400 Bad Request",
+                    {
+                        "Content-Type": "text/plain",
+                        "Connection": "close"
+                    },
+                    b"Bad Request"
+                )
                 continue
-
             method, target, version = parts
             if method != "GET":
                 respond(conn, "405 Method Not Allowed",
-                        {"Allow": "GET", "Content-Type": "text/plain", "Connection": "close"},
+                        {"Allow": "GET",
+                         "Content-Type": "text/plain",
+                         "Connection": "close"},
                         b"Only GET is allowed")
                 continue
 
@@ -303,9 +324,12 @@ def main():
             # decode URL encoded characters
             target = unquote(target)
             # map URL to relative path under root
-            requested_rel = "" if target == "/" else target.lstrip("/")
-            requested_abs = os.path.realpath(os.path.join(content_dir, requested_rel))
+            if target == "/":
+                requested_rel = ""  # root directory
+            else:
+                requested_rel = target.lstrip("/")
 
+            requested_abs = os.path.realpath(os.path.join(content_dir, requested_rel))
             # 1) reject traversal
             if not _is_subpath(requested_abs, content_dir):
                 _respond_404(conn)
@@ -328,9 +352,12 @@ def main():
                 continue
 
             # 3) regular file flow
+            # First check if it exists at the specified path
             if not os.path.isfile(requested_abs):
+                # If not found at direct path, try searching recursively for just the filename
                 filename = os.path.basename(requested_rel)
                 found_path = find_file_recursive(content_dir, filename)
+
                 if found_path:
                     requested_abs = found_path
                     print(f"Found file via recursive search: {found_path}")
@@ -351,6 +378,7 @@ def main():
             try:
                 with open(requested_abs, "rb") as f:
                     body = f.read()
+                time.sleep(0.5)
                 respond(conn, "200 OK",
                         {"Content-Type": mime_type,
                          "Content-Length": str(len(body)),
@@ -359,7 +387,8 @@ def main():
                 print(f"Served: {requested_rel} ({mime_type})")
             except OSError:
                 respond(conn, "500 Internal Server Error",
-                        {"Content-Type": "text/plain", "Connection": "close"},
+                        {"Content-Type": "text/plain",
+                         "Connection": "close"},
                         b"Internal Server Error")
 
         except Exception as e:
